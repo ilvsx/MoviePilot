@@ -123,6 +123,23 @@ class SubtitleModule(_ModuleBase):
             logger.warn(f"无法打开链接：{torrent.page_url}")
         return None
 
+    @staticmethod
+    def _ensure_directory(storage_chain: StorageChain, storage: str, path: Path):
+        """
+        Ensure the target directory exists before subtitle files are created.
+        """
+        dir_item = storage_chain.get_file_item(storage, path)
+        if dir_item:
+            return dir_item
+
+        if path == path.parent:
+            return None
+
+        parent_item = SubtitleModule._ensure_directory(storage_chain, storage, path.parent)
+        if not parent_item:
+            return None
+        return storage_chain.create_folder(parent_item, path.name)
+
     def download_added(self, context: Context, download_dir: Path, torrent_content: Union[str, bytes] = None):
         """
         添加下载任务成功后，从站点下载字幕，保存到下载目录
@@ -162,7 +179,7 @@ class SubtitleModule(_ModuleBase):
             time.sleep(1)
         # 目录仍然不存在，且有文件夹名，则创建目录
         if not working_dir_item and folder_name:
-            parent_dir_item = storageChain.get_file_item(storage, download_dir)
+            parent_dir_item = self._ensure_directory(storageChain, storage, download_dir)
             if parent_dir_item:
                 working_dir_item = storageChain.create_folder(
                     parent_dir_item,
